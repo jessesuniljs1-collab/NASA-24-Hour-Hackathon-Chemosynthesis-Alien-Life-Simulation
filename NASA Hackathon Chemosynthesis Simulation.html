@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NASA Ocean World Ecosystem Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background-color: #000010;
+        }
+        #ui-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+        #scanlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 1;
+            transition: opacity 1s ease-in-out;
+        }
+        .panel {
+            background-color: rgba(10, 10, 20, 0.75);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            pointer-events: all;
+        }
+        #info-panel {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            max-width: 320px;
+        }
+        #command-panel {
+            width: 340px;
+        }
+        #chemistry-panel {
+            position: absolute;
+            bottom: 1rem;
+            left: 1rem;
+            width: 300px;
+        }
+        #mission-panel {
+            width: 340px; /* Adjusted width to match command panel */
+        }
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 18px; height: 18px;
+            background: #0ea5e9; cursor: pointer;
+            border-radius: 50%;
+        }
+        .tab-button {
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: #ccc;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            transition: all 0.3s;
+        }
+        .tab-button.active {
+            background: #0ea5e9;
+            color: white;
+            border-color: #0ea5e9;
+        }
+        .chemical-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 0.25rem;
+            margin: 0.25rem 0;
+        }
+        .organism-card {
+            background: rgba(255,255,255,0.05);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin: 0.5rem 0;
+            border-left: 3px solid;
+        }
+        .pulsing {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+        .discovery-notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 150, 255, 0.9);
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            z-index: 200;
+            animation: fadeInOut 4s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+            20%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <canvas id="simulationCanvas"></canvas>
+    <div id="scanlines"></div>
+    
+    <div id="failure-overlay" class="hidden absolute inset-0 bg-black/80 flex flex-col justify-center items-center text-center z-50 pointer-events-all">
+        <h2 class="text-5xl font-bold text-red-500 mb-4 animate-pulse">ECOSYSTEM COLLAPSE</h2>
+        <p class="text-xl text-gray-300">The chemosynthetic ecosystem has failed.</p>
+        <p class="text-lg text-gray-400 mt-2">Adjust parameters and restart simulation.</p>
+    </div>
+
+    <div id="ui-container">
+        <!-- Main Info Panel -->
+        <div id="info-panel" class="panel text-sm">
+            <div class="flex items-center justify-between mb-3">
+                <h1 class="text-xl font-bold text-blue-400">🚀 NASA</h1>
+                <div class="text-xs text-green-400 pulsing">LIVE SIMULATION</div>
+            </div>
+            
+            <div class="mb-4">
+                <h2 class="text-lg font-semibold mb-2" id="world-name">Europa Ocean Simulator</h2>
+                <div class="text-xs space-y-1">
+                    <p><strong>Location:</strong> <span id="world-location">Jupiter's Moon Europa</span></p>
+                    <p><strong>Depth:</strong> <span id="world-depth">100km below ice</span></p>
+                    <p><strong>Pressure:</strong> <span id="world-pressure">130 atmospheres</span></p>
+                    <p><strong>Temperature:</strong> <span id="world-temperature">2-4°C</span></p>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <h3 class="text-md font-semibold mb-2 text-cyan-300">Organism Classification</h3>
+                <div class="organism-card" style="border-left-color: #FFD700;">
+                    <div class="text-xs">
+                        <strong class="text-yellow-400">Primary Producers</strong><br>
+                        <em>Thermosulfobacter europensis</em><br>
+                        Chemosynthetic bacteria using H₂S
+                    </div>
+                </div>
+                <div class="organism-card" style="border-left-color: #00BFFF;">
+                    <div class="text-xs">
+                        <strong class="text-cyan-400">Filter Feeders</strong><br>
+                        <em>Filtrus giganticus</em><br>
+                        Mid-water bacterial consumers
+                    </div>
+                </div>
+                <div class="organism-card" style="border-left-color: #FF6B6B;">
+                    <div class="text-xs">
+                        <strong class="text-red-400">Apex Predators</strong><br>
+                        <em>Velocitas predatorius</em><br>
+                        Serpentine chemosynthetic hunters
+                    </div>
+                </div>
+            </div>
+
+            <div class="font-mono text-xs">
+                <p id="stats"></p>
+                <p id="time-display" class="mt-2 text-green-400"></p>
+                <p id="ecosystem-health" class="mt-1"></p>
+            </div>
+        </div>
+
+        <!-- Right Column Wrapper -->
+        <div class="absolute top-4 right-4 flex flex-col gap-4">
+            <!-- Control Panel -->
+            <div id="command-panel" class="panel space-y-4">
+                <!-- Ocean World Selection -->
+                <div>
+                    <h2 class="text-md font-bold mb-2 text-center">🌍 Ocean World Selection</h2>
+                    <div class="flex space-x-1">
+                        <button class="tab-button active text-xs" data-world="europa">Europa</button>
+                        <button class="tab-button text-xs" data-world="enceladus">Enceladus</button>
+                        <button class="tab-button text-xs" data-world="thalassa">Thalassa Nova</button>
+                    </div>
+                </div>
+
+                <!-- Population Timeline -->
+                <div>
+                    <h2 class="text-md font-bold mb-2 text-center">📈 Population Timeline</h2>
+                    <div class="h-[100px] relative">
+                        <canvas id="timeline-chart"></canvas>
+                    </div>
+                </div>
+                
+                <hr class="border-gray-600"/>
+
+                <!-- Simulation Controls -->
+                <div>
+                    <h2 class="text-md font-bold mb-2 text-center">⚙️ Ecosystem Parameters</h2>
+                    <div class="space-y-3">
+                        <div>
+                            <label for="limpet-slider" class="block text-sm font-medium text-cyan-400">
+                                Initial Producers: <span id="limpet-count">50</span>
+                            </label>
+                            <input id="limpet-slider" type="range" min="10" max="150" value="50" class="w-full">
+                            <p class="text-xs text-gray-400 mt-1">Base of the chemosynthetic food web</p>
+                        </div>
+                        <div>
+                            <label for="stalker-slider" class="block text-sm font-medium text-red-500">
+                                Initial Predators: <span id="stalker-count">10</span>
+                            </label>
+                            <input id="stalker-slider" type="range" min="2" max="50" value="10" class="w-full">
+                            <p class="text-xs text-gray-400 mt-1">Top of the food chain - balance carefully</p>
+                        </div>
+                        <div>
+                            <label for="vent-activity" class="block text-sm font-medium text-orange-400">
+                                Hydrothermal Activity: <span id="vent-count">70</span>%
+                            </label>
+                            <input id="vent-activity" type="range" min="20" max="100" value="70" class="w-full">
+                            <p class="text-xs text-gray-400 mt-1">Controls chemical energy production rate</p>
+                        </div>
+                    </div>
+                    <button id="start-btn" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors">
+                        🚀 Initialize Ecosystem
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mission Planning Panel -->
+            <div id="mission-panel" class="panel">
+                <h2 class="text-md font-bold mb-2 text-center">🛰️ Mission Planning</h2>
+                
+                <div class="mb-3">
+                    <h3 class="text-sm font-semibold mb-2 text-blue-300">Current Mission</h3>
+                    <div class="bg-blue-900/20 p-2 rounded text-xs">
+                        <strong id="mission-name">Europa Clipper</strong><br>
+                        Status: <span class="text-green-400" id="mission-status">En Route (2024)</span><br>
+                        ETA: <span id="mission-eta">2030</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h3 class="text-sm font-semibold mb-2 text-green-300">🔬 Detection Instruments</h3>
+                    <div class="space-y-1 text-xs">
+                        <div class="flex justify-between">
+                            <span>Mass Spectrometer</span>
+                            <span class="text-green-400">✓ Active</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Ice-Penetrating Radar</span>
+                            <span class="text-green-400">✓ Active</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Magnetometer</span>
+                            <span class="text-green-400">✓ Active</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Life Detection Suite</span>
+                            <span class="text-yellow-400">○ Planned</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <h3 class="text-sm font-semibold mb-2 text-red-300">🎯 Discovery Potential</h3>
+                    <div class="space-y-2">
+                        <div class="text-xs">
+                            <div class="flex justify-between">
+                                <span>Biosignature Probability</span>
+                                <span id="biosig-prob" class="text-green-400">85%</span>
+                            </div>
+                            <div class="w-full h-2 bg-gray-600 rounded mt-1">
+                                <div class="h-full bg-green-400 rounded transition-all duration-500" id="biosig-bar" style="width: 85%;"></div>
+                            </div>
+                        </div>
+                        <div class="text-xs">
+                            <div class="flex justify-between">
+                                <span>Complex Life Potential</span>
+                                <span id="complex-prob" class="text-orange-400">45%</span>
+                            </div>
+                            <div class="w-full h-2 bg-gray-600 rounded mt-1">
+                                <div class="h-full bg-orange-400 rounded transition-all duration-500" id="complex-bar" style="width: 45%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-xs text-center">
+                    <div class="bg-purple-900/20 p-2 rounded">
+                        <strong>Next Discovery Window</strong><br>
+                        <span id="next-discovery" class="text-purple-300">Analyzing ecosystem stability...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Chemistry Panel -->
+        <div id="chemistry-panel" class="panel">
+            <h2 class="text-md font-bold mb-2 text-center">⚗️ Chemical Composition</h2>
+            <div class="space-y-2">
+                <div class="chemical-indicator">
+                    <span class="text-xs">H₂S (Hydrogen Sulfide)</span>
+                    <div class="flex items-center">
+                        <div class="w-16 h-2 bg-gray-600 rounded mr-2">
+                            <div class="h-full bg-yellow-400 rounded transition-all duration-500" id="h2s-bar" style="width: 75%;"></div>
+                        </div>
+                        <span class="text-xs text-yellow-400" id="h2s-value">75 mM</span>
+                    </div>
+                </div>
+                <div class="chemical-indicator">
+                    <span class="text-xs">CH₄ (Methane)</span>
+                    <div class="flex items-center">
+                        <div class="w-16 h-2 bg-gray-600 rounded mr-2">
+                            <div class="h-full bg-blue-400 rounded transition-all duration-500" id="ch4-bar" style="width: 45%;"></div>
+                        </div>
+                        <span class="text-xs text-blue-400" id="ch4-value">23 mM</span>
+                    </div>
+                </div>
+                <div class="chemical-indicator">
+                    <span class="text-xs">SO₄²⁻ (Sulfate)</span>
+                    <div class="flex items-center">
+                        <div class="w-16 h-2 bg-gray-600 rounded mr-2">
+                            <div class="h-full bg-green-400 rounded transition-all duration-500" id="so4-bar" style="width: 60%;"></div>
+                        </div>
+                        <span class="text-xs text-green-400" id="so4-value">31 mM</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <h3 class="text-sm font-semibold mb-2 text-purple-400">Key Reactions</h3>
+                <div class="text-xs space-y-1 font-mono">
+                    <div class="bg-gray-800 p-2 rounded">H₂S + O₂ → SO₄²⁻ + H₂O + 750 kJ/mol</div>
+                    <div class="bg-gray-800 p-2 rounded">CH₄ + 2O₂ → CO₂ + 2H₂O + 890 kJ/mol</div>
+                </div>
+            </div>
+
+            <div class="mt-3">
+                <h3 class="text-sm font-semibold mb-2 text-amber-400">🌍 Earth Analog</h3>
+                <div class="text-xs bg-amber-900/20 p-2 rounded">
+                    <strong>Lost City Hydrothermal Field</strong><br>
+                    Mid-Atlantic Ridge, 750m depth<br>
+                    Similar alkaline chemistry
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Ocean World Data
+        const oceanWorlds = {
+            europa: {
+                name: "Europa Ocean Simulator",
+                location: "Jupiter's Moon Europa", 
+                depth: "100km below ice",
+                pressure: "130 atmospheres",
+                temperature: "2-4°C",
+                mission: "Europa Clipper",
+                status: "En Route (2024)",
+                eta: "2030",
+                chemistry: { h2s: 75, ch4: 23, so4: 31 },
+                earthAnalog: "Lost City Hydrothermal Field",
+                bgColor: "#000015",
+                particleColor: "rgba(255, 223, 100, 0.8)"
+            },
+            enceladus: {
+                name: "Enceladus Plume Simulator",
+                location: "Saturn's Moon Enceladus",
+                depth: "40km below ice", 
+                pressure: "80 atmospheres",
+                temperature: "0-2°C",
+                mission: "Cassini Legacy",
+                status: "Data Analysis",
+                eta: "Ongoing",
+                chemistry: { h2s: 45, ch4: 65, so4: 25 },
+                earthAnalog: "Mariana Trench Vents",
+                bgColor: "#001020",
+                particleColor: "rgba(150, 255, 255, 0.8)"
+            },
+            thalassa: {
+                name: "Thalassa Nova Deep Ocean",
+                location: "Hypothetical K-Star System",
+                depth: "120km subsurface ocean",
+                pressure: "200+ atmospheres", 
+                temperature: "0-150°C",
+                mission: "Future Interstellar Probe",
+                status: "Mission Concept",
+                eta: "2080+",
+                chemistry: { h2s: 95, ch4: 35, so4: 65 },
+                earthAnalog: "Multiple Analog Sites",
+                bgColor: "#100010", 
+                particleColor: "rgba(255, 150, 255, 0.8)"
+            }
+        };
+
+        let currentWorld = 'europa';
+
+        // UI & Controls
+        const uiContainer = document.getElementById('ui-container');
+        const scanlines = document.getElementById('scanlines');
+        const limpetSlider = document.getElementById('limpet-slider');
+        const stalkerSlider = document.getElementById('stalker-slider');
+        const ventSlider = document.getElementById('vent-activity');
+        const limpetCountEl = document.getElementById('limpet-count');
+        const stalkerCountEl = document.getElementById('stalker-count');
+        const ventCountEl = document.getElementById('vent-count');
+        const startBtn = document.getElementById('start-btn');
+        const statsEl = document.getElementById('stats');
+        const timeDisplayEl = document.getElementById('time-display');
+        const failureOverlay = document.getElementById('failure-overlay');
+
+        // World selection tabs
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentWorld = e.target.dataset.world;
+                updateWorldInfo();
+                if (!isSimulating) init();
+            });
+        });
+
+        const updateSliderLabel = (slider, label) => label.textContent = slider.value;
+        limpetSlider.addEventListener('input', () => updateSliderLabel(limpetSlider, limpetCountEl));
+        stalkerSlider.addEventListener('input', () => updateSliderLabel(stalkerSlider, stalkerCountEl));
+        ventSlider.addEventListener('input', () => updateSliderLabel(ventSlider, ventCountEl));
+        startBtn.addEventListener('click', toggleSimulation);
+
+        // Update world information display
+        function updateWorldInfo() {
+            const world = oceanWorlds[currentWorld];
+            document.getElementById('world-name').textContent = world.name;
+            document.getElementById('world-location').textContent = world.location;
+            document.getElementById('world-depth').textContent = world.depth;
+            document.getElementById('world-pressure').textContent = world.pressure;
+            document.getElementById('world-temperature').textContent = world.temperature;
+            document.getElementById('mission-name').textContent = world.mission;
+            document.getElementById('mission-status').textContent = world.status;
+            document.getElementById('mission-eta').textContent = world.eta;
+            
+            // Update chemistry display
+            updateChemistry(world.chemistry);
+            
+            // Update canvas background
+            canvas.style.backgroundColor = world.bgColor;
+        }
+
+        function updateChemistry(chemistry) {
+            document.getElementById('h2s-bar').style.width = chemistry.h2s + '%';
+            document.getElementById('h2s-value').textContent = chemistry.h2s + ' mM';
+            document.getElementById('ch4-bar').style.width = chemistry.ch4 + '%';
+            document.getElementById('ch4-value').textContent = chemistry.ch4 + ' mM';
+            document.getElementById('so4-bar').style.width = chemistry.so4 + '%';
+            document.getElementById('so4-value').textContent = chemistry.so4 + ' mM';
+        }
+
+        // Simulation State
+        let limpets = [], stalkers = [], particles = [], vents = [], seafloorLayers = [], ambientParticles = [];
+        let isSystemFailure = false, isSimulating = false, isInitializing = false;
+        let frameCount = 0, simulationTime = 0, lastDiscovery = 0;
+        let camera = { x: 0, y: -canvas.height / 2, zoom: 0.5, targetX: 0, targetY: 0, targetZoom: 1 };
+        
+        const config = {
+            numVents: 25, particleRate: 3, particleLifespan: 400,
+            limpetSpeed: 0.4, limpetEnergy: 100, limpetReproduceEnergy: 150,
+            stalkerSpeed: 0.7, stalkerEnergy: 500, stalkerReproduceEnergy: 1000, stalkerHuntRange: 150,
+            secondsPerDay: 60,
+        };
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            generateSeafloorTexture();
+            generateAmbientParticles();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+        const random = (min, max) => Math.random() * (max - min) + min;
+        const lerp = (a, b, t) => a + (b - a) * t;
+
+        // Graphics
+        function generateSeafloorTexture() {
+            seafloorLayers = [[], [], []];
+            for (let layer = 0; layer < 3; layer++) {
+                for (let i = 0; i < 250 * (layer + 1); i++) {
+                    seafloorLayers[layer].push({ 
+                        x: random(-canvas.width * 0.5, canvas.width * 1.5), 
+                        y: random(canvas.height * 0.6, canvas.height * 1.2), 
+                        radius: random(1, 4) * (1 - layer * 0.2), 
+                        color: `rgba(100, 100, 120, ${random(0.1, 0.3)})` 
+                    });
+                }
+            }
+        }
+
+        function generateAmbientParticles() {
+            ambientParticles = [];
+            for (let i = 0; i < 100; i++) {
+                ambientParticles.push({ 
+                    x: random(0, canvas.width), 
+                    y: random(0, canvas.height), 
+                    z: random(0.1, 0.5), 
+                    vy: random(0.1, 0.3) 
+                });
+            }
+        }
+
+        function drawBackground(camera) {
+            const world = oceanWorlds[currentWorld];
+            const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGradient.addColorStop(0, world.bgColor);
+            bgGradient.addColorStop(1, '#0a0a2a');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            seafloorLayers.forEach((layer, index) => {
+                const parallaxFactor = (index + 1) * 0.05;
+                ctx.save();
+                ctx.translate(camera.x * parallaxFactor, camera.y * parallaxFactor);
+                layer.forEach(rock => {
+                    ctx.fillStyle = rock.color;
+                    ctx.beginPath();
+                    ctx.arc(rock.x, rock.y, rock.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                ctx.restore();
+            });
+        }
+        
+        function drawAmbientParticles() {
+            ambientParticles.forEach(p => {
+                p.y += p.vy * p.z;
+                if (p.y > canvas.height) {
+                    p.y = 0;
+                    p.x = random(0, canvas.width);
+                }
+                ctx.fillStyle = `rgba(200, 220, 255, ${p.z * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.z * 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Discovery notifications
+        function showDiscovery(message) {
+            const notification = document.createElement('div');
+            notification.className = 'discovery-notification';
+            notification.innerHTML = `🔬 SCIENTIFIC DISCOVERY<br>${message}`;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 4000);
+        }
+
+        // Timeline Chart
+        const chartCtx = document.getElementById('timeline-chart').getContext('2d');
+        let timelineChart;
+        
+        function createChart() {
+            if (timelineChart) timelineChart.destroy();
+            timelineChart = new Chart(chartCtx, {
+                type: 'line',
+                data: { 
+                    labels: [], 
+                    datasets: [
+                        { 
+                            label: 'Producers', 
+                            data: [], 
+                            borderColor: 'rgba(255, 215, 0, 1)', 
+                            backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                            fill: false, 
+                            pointRadius: 0, 
+                            tension: 0.4,
+                            borderWidth: 2
+                        },
+                        { 
+                            label: 'Consumers', 
+                            data: [], 
+                            borderColor: 'rgba(0, 191, 255, 1)', 
+                            backgroundColor: 'rgba(0, 191, 255, 0.1)',
+                            fill: false, 
+                            pointRadius: 0, 
+                            tension: 0.4,
+                            borderWidth: 2
+                        },
+                        { 
+                            label: 'Predators', 
+                            data: [], 
+                            borderColor: 'rgba(255, 99, 132, 1)', 
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            fill: false, 
+                            pointRadius: 0, 
+                            tension: 0.4,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { 
+                        x: { display: false }, 
+                        y: { 
+                            beginAtZero: true, 
+                            ticks: { color: '#fff', font: { size: 10 } }, 
+                            grid: { color: 'rgba(255,255,255,0.1)' } 
+                        } 
+                    }, 
+                    plugins: { 
+                        legend: { 
+                            labels: { color: '#fff', font: { size: 11 } } 
+                        } 
+                    } 
+                }
+            });
+        }
+
+        // Classes
+        class Vent {
+            constructor() {
+                this.x = random(0, canvas.width); 
+                this.y = canvas.height; 
+                this.height = random(100, 250); 
+                this.baseWidth = this.height / 2;
+                this.segments = 10; 
+                this.shape = [];
+                this.activity = 1.0; // Controlled by vent activity slider
+                
+                for (let i = 0; i <= this.segments; i++) {
+                    const progress = i / this.segments; 
+                    const width = this.baseWidth * (1 - progress * 0.8) * 0.5;
+                    const offset = Math.sin(i * 0.5 + random(-0.5, 0.5)) * width * 0.4;
+                    this.shape.push({ width, offset });
+                }
+                
+                this.matTexture = [];
+                for (let i = 0; i < 70; i++) {
+                    const angle = random(0, Math.PI * 2); 
+                    const radius = random(0, this.baseWidth * 0.8);
+                    this.matTexture.push({ 
+                        x: this.x + Math.cos(angle) * radius, 
+                        y: this.y + Math.sin(angle) * (radius * 0.25), 
+                        radius: random(2, 12), 
+                        color: `rgba(${random(200, 255)}, ${random(150, 220)}, 100, ${random(0.1, 0.5)})` 
+                    });
+                }
+            }
+            
+            draw(frameCount) {
+                const world = oceanWorlds[currentWorld];
+                const intensity = this.activity * (0.8 + Math.sin(frameCount * 0.02) * 0.2);
+                const lightRadius = this.baseWidth * (1.5 + Math.sin(frameCount * 0.02) * 0.5) * intensity;
+                
+                const lightGradient = ctx.createRadialGradient(this.x, this.y - this.height, 0, this.x, this.y - this.height, lightRadius);
+                lightGradient.addColorStop(0, `rgba(255, 220, 180, ${0.15 * intensity})`); 
+                lightGradient.addColorStop(1, `rgba(255, 220, 180, 0)`);
+                ctx.fillStyle = lightGradient; 
+                ctx.fillRect(this.x - lightRadius, this.y - this.height - lightRadius, lightRadius * 2, lightRadius * 2);
+                
+                this.matTexture.forEach(p => { 
+                    const pulse = (0.8 + Math.sin(frameCount * 0.05 + p.x) * 0.2) * intensity;
+                    ctx.fillStyle = p.color.replace(/, [0-9\.]+\)/, `, ${p.color.match(/, ([0-9\.]+)\)/)[1] * pulse})`);
+                    ctx.beginPath(); 
+                    ctx.arc(p.x, p.y, p.radius * pulse, 0, Math.PI * 2); 
+                    ctx.fill(); 
+                });
+
+                const bodyGradient = ctx.createLinearGradient(this.x - this.baseWidth / 2, this.y, this.x + this.baseWidth / 2, this.y);
+                bodyGradient.addColorStop(0, '#282018'); 
+                bodyGradient.addColorStop(0.5, '#504840'); 
+                bodyGradient.addColorStop(1, '#302820');
+                ctx.fillStyle = bodyGradient; 
+                ctx.beginPath();
+                ctx.moveTo(this.x - this.shape[0].width, this.y);
+                for (let i = 1; i <= this.segments; i++) { 
+                    const y = this.y - (i / this.segments) * this.height; 
+                    ctx.lineTo(this.x - this.shape[i].width + this.shape[i].offset, y); 
+                }
+                for (let i = this.segments; i >= 0; i--) { 
+                    const y = this.y - (i / this.segments) * this.height; 
+                    ctx.lineTo(this.x + this.shape[i].width + this.shape[i].offset, y); 
+                }
+                ctx.closePath(); 
+                ctx.fill();
+            }
+            
+            emit() { 
+                const emissionRate = Math.floor(config.particleRate * this.activity);
+                for (let i = 0; i < emissionRate; i++) { 
+                    particles.push(new Particle(this.x, this.y - this.height)); 
+                } 
+            }
+        }
+
+        class Particle {
+            constructor(x, y) { 
+                this.x = x + random(-10, 10); 
+                this.y = y; 
+                this.z = random(0.2, 1); 
+                this.vx = random(-0.5, 0.5); 
+                this.vy = -random(0.5, 1.5); 
+                this.lifespan = config.particleLifespan; 
+                this.world = currentWorld;
+            }
+            
+            update() { 
+                this.x += this.vx * this.z; 
+                this.y += this.vy * this.z; 
+                this.lifespan--; 
+            }
+            
+            draw() {
+                const world = oceanWorlds[this.world];
+                const alpha = this.lifespan / config.particleLifespan; 
+                const radius = 2 * this.z;
+                const glow = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, radius * 2);
+                glow.addColorStop(0, world.particleColor.replace('0.8', (alpha * 0.8).toString())); 
+                glow.addColorStop(1, world.particleColor.replace('0.8', '0'));
+                ctx.fillStyle = glow; 
+                ctx.beginPath(); 
+                ctx.arc(this.x, this.y, radius * 2, 0, Math.PI * 2); 
+                ctx.fill();
+            }
+        }
+
+        class Organism {
+            constructor(x, y, energy) { 
+                this.x = x; 
+                this.y = y; 
+                this.energy = energy; 
+                this.maxEnergy = energy;
+                this.angle = random(0, Math.PI * 2); 
+                this.world = currentWorld;
+            }
+            
+            getDepthProperties() { 
+                const depthRatio = this.y / canvas.height; 
+                return { 
+                    scale: 0.3 + depthRatio * 0.7, 
+                    alpha: 0.5 + depthRatio * 0.5, 
+                }; 
+            }
+        }
+
+        class Limpet extends Organism {
+            constructor(x, y, energy) { 
+                super(x, y, energy); 
+                this.speed = config.limpetSpeed; 
+                this.type = 'producer';
+            }
+            
+            update() {
+                this.energy -= 0.1; 
+                this.angle += random(-0.2, 0.2); 
+                const { scale } = this.getDepthProperties(); 
+                const effectiveSpeed = this.speed * (scale + 0.5);
+                this.x += Math.cos(this.angle) * effectiveSpeed; 
+                this.y += Math.sin(this.angle) * 0.5 * effectiveSpeed;
+                
+                if (this.x < 0 || this.x > canvas.width) this.angle = Math.PI - this.angle; 
+                if (this.y < canvas.height * 0.3 || this.y > canvas.height) this.angle = -this.angle;
+                
+                for (let i = particles.length - 1; i >= 0; i--) { 
+                    const p = particles[i]; 
+                    const dx = this.x - p.x; 
+                    const dy = this.y - p.y; 
+                    if (dx * dx + dy * dy < (10 * scale) ** 2) { 
+                        this.energy += 10; 
+                        particles.splice(i, 1); 
+                        return; 
+                    } 
+                }
+            }
+            
+            draw() {
+                const { scale, alpha } = this.getDepthProperties(); 
+                ctx.save(); 
+                ctx.translate(this.x, this.y); 
+                ctx.rotate(this.angle);
+                
+                // Health-based color intensity
+                const healthRatio = this.energy / this.maxEnergy;
+                const intensity = Math.max(0.3, healthRatio);
+                
+                ctx.fillStyle = `rgba(255, 215, 0, ${alpha * intensity})`; 
+                ctx.strokeStyle = `rgba(255, 255, 200, ${alpha * intensity})`; 
+                ctx.lineWidth = 1.5 * scale;
+                ctx.beginPath(); 
+                ctx.moveTo(6 * scale, 0); 
+                ctx.lineTo(-4 * scale, -5 * scale); 
+                ctx.lineTo(-2 * scale, 0); 
+                ctx.lineTo(-4 * scale, 5 * scale); 
+                ctx.closePath(); 
+                ctx.fill(); 
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class Stalker extends Organism {
+            constructor(x, y, energy) { 
+                super(x, y, energy); 
+                this.speed = config.stalkerSpeed; 
+                this.target = null; 
+                this.tail = Array(15).fill({x: this.x, y: this.y}); 
+                this.searchCooldown = 0; 
+                this.type = 'predator';
+            }
+            
+            update() {
+                this.energy -= 0.5; 
+                this.searchCooldown--; 
+                const { scale } = this.getDepthProperties();
+                
+                if ((!this.target || this.target.energy <= 0) && this.searchCooldown <= 0) {
+                    this.target = null; 
+                    let closestDistSq = config.stalkerHuntRange ** 2;
+                    for(const limpet of limpets) { 
+                        const dx = this.x - limpet.x; 
+                        const dy = this.y - limpet.y; 
+                        const dSq = dx * dx + dy * dy; 
+                        if (dSq < closestDistSq) { 
+                            closestDistSq = dSq; 
+                            this.target = limpet; 
+                        } 
+                    }
+                    this.searchCooldown = 30;
+                }
+                
+                if (this.target) { 
+                    this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x); 
+                } else { 
+                    this.angle += random(-0.1, 0.1); 
+                }
+                
+                const effectiveSpeed = this.speed * (scale + 0.5); 
+                this.x += Math.cos(this.angle) * effectiveSpeed; 
+                this.y += Math.sin(this.angle) * effectiveSpeed;
+                
+                if (this.x < 0 || this.x > canvas.width || this.y < canvas.height * 0.3 || this.y > canvas.height) { 
+                    this.angle += Math.PI; 
+                }
+                
+                if (this.target) { 
+                    const dx = this.x - this.target.x; 
+                    const dy = this.y - this.target.y; 
+                    if (dx * dx + dy * dy < (10 * scale) ** 2) { 
+                        this.energy += this.target.energy; 
+                        this.target.energy = 0; 
+                        this.target = null; 
+                    } 
+                }
+                
+                this.tail.unshift({x: this.x, y: this.y}); 
+                this.tail.pop();
+            }
+            
+            draw(frameCount) {
+                const { scale, alpha } = this.getDepthProperties(); 
+                
+                // Health-based tail intensity
+                const healthRatio = this.energy / this.maxEnergy;
+                const intensity = Math.max(0.3, healthRatio);
+                
+                ctx.beginPath(); 
+                ctx.moveTo(this.tail[0].x, this.tail[0].y);
+                for (let i = 1; i < this.tail.length; i++) { 
+                    ctx.lineTo(this.tail[i].x, this.tail[i].y); 
+                }
+                ctx.strokeStyle = `rgba(255, 50, 50, ${alpha * 0.7 * intensity})`; 
+                ctx.lineWidth = 3 * scale; 
+                ctx.stroke();
+                
+                ctx.save(); 
+                ctx.translate(this.x, this.y); 
+                ctx.rotate(this.angle); 
+                ctx.fillStyle = `rgba(255, 100, 100, ${alpha * intensity})`;
+                ctx.beginPath(); 
+                ctx.moveTo(6 * scale, 0); 
+                ctx.lineTo(-3 * scale, -4 * scale); 
+                ctx.lineTo(-3 * scale, 4 * scale); 
+                ctx.closePath(); 
+                ctx.fill();
+                
+                const glow = 0.5 + Math.sin(frameCount * 0.1) * 0.5; 
+                ctx.fillStyle = `rgba(255, 200, 200, ${alpha * glow * intensity})`;
+                ctx.beginPath(); 
+                ctx.arc(-2 * scale, -2 * scale, 1 * scale, 0, Math.PI * 2); 
+                ctx.arc(-2 * scale, 2 * scale, 1 * scale, 0, Math.PI * 2); 
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Main Functions
+        function updateVentActivity() {
+            const activity = parseInt(ventSlider.value) / 100;
+            vents.forEach(vent => {
+                vent.activity = activity;
+            });
+        }
+
+        function calculateEcosystemHealth() {
+            const totalOrganisms = limpets.length + stalkers.length;
+            if (totalOrganisms === 0) return 0;
+            
+            const diversityScore = (limpets.length > 0 ? 1 : 0) + (stalkers.length > 0 ? 1 : 0);
+            const populationBalance = Math.min(limpets.length, stalkers.length * 10) / Math.max(limpets.length, stalkers.length * 10 + 1);
+            
+            return Math.round((diversityScore / 2) * populationBalance * 100);
+        }
+
+        function updateDiscoveryPotential() {
+            const health = calculateEcosystemHealth();
+            const complexity = stalkers.length > 5 && limpets.length > 20 ? 1 : 0.5;
+            const stability = frameCount > 1800 ? 1 : frameCount / 1800; // 30 seconds stability
+            
+            const biosigProb = Math.min(95, Math.round(health * 0.85 + stability * 15));
+            const complexProb = Math.min(75, Math.round(complexity * health * 0.75));
+            
+            document.getElementById('biosig-prob').textContent = biosigProb + '%';
+            document.getElementById('biosig-bar').style.width = biosigProb + '%';
+            document.getElementById('complex-prob').textContent = complexProb + '%';
+            document.getElementById('complex-bar').style.width = complexProb + '%';
+            
+            // Discovery notifications
+            if (frameCount - lastDiscovery > 1800) { // Every 30 seconds max
+                if (biosigProb > 80 && limpets.length > 30) {
+                    showDiscovery("Strong biosignatures detected in chemical analysis!");
+                    lastDiscovery = frameCount;
+                } else if (complexProb > 60 && stalkers.length > 8) {
+                    showDiscovery("Complex predator-prey interactions observed!");
+                    lastDiscovery = frameCount;
+                } else if (health > 90) {
+                    showDiscovery("Stable ecosystem established - mission success!");
+                    lastDiscovery = frameCount;
+                }
+            }
+        }
+
+        function toggleSimulation() {
+            if (isSimulating || isInitializing) { 
+                init();
+            } else { 
+                init(true);
+                isInitializing = true;
+                startBtn.textContent = '🔄 Initializing Ecosystem...';
+                startBtn.disabled = true;
+                
+                const initialLimpets = parseInt(limpetSlider.value);
+                const initialStalkers = parseInt(stalkerSlider.value);
+                let limpetsToSpawn = initialLimpets;
+                let stalkersToSpawn = initialStalkers;
+
+                const spawner = setInterval(() => {
+                    if (limpetsToSpawn > 0) {
+                        const vent = vents[Math.floor(random(0, vents.length))];
+                        limpets.push(new Limpet(vent.x, vent.y - vent.height, config.limpetEnergy));
+                        limpetsToSpawn--;
+                    }
+                    if (stalkersToSpawn > 0 && limpets.length > initialLimpets / 2) {
+                        const vent = vents[Math.floor(random(0, vents.length))];
+                        stalkers.push(new Stalker(vent.x, vent.y - vent.height, config.stalkerEnergy));
+                        stalkersToSpawn--;
+                    }
+                    if (limpetsToSpawn === 0 && stalkersToSpawn === 0) {
+                        clearInterval(spawner);
+                        isInitializing = false;
+                        isSimulating = true;
+                        startBtn.textContent = '🔄 Restart Ecosystem';
+                        startBtn.disabled = false;
+                        startBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                        startBtn.classList.add('bg-amber-600', 'hover:bg-amber-700');
+                    }
+                }, 100);
+            }
+        }
+
+        function init(isStarting = false) {
+            isSimulating = false; 
+            isInitializing = false; 
+            isSystemFailure = false;
+            frameCount = 0; 
+            simulationTime = 0;
+            lastDiscovery = 0;
+            failureOverlay.classList.add('hidden');
+            startBtn.textContent = '🚀 Initialize Ecosystem'; 
+            startBtn.disabled = false;
+            startBtn.classList.remove('bg-amber-600', 'hover:bg-amber-700');
+            startBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            
+            if (!isStarting) {
+                camera = { x: 0, y: 0, zoom: 1, targetX: 0, targetY: 0, targetZoom: 1 };
+                uiContainer.style.opacity = 1;
+                scanlines.style.opacity = 0;
+            } else {
+                camera = { x: 0, y: -canvas.height / 2, zoom: 0.5, targetX: 0, targetY: 0, targetZoom: 1 };
+                setTimeout(() => {
+                    uiContainer.style.opacity = 1;
+                    scanlines.style.opacity = 0;
+                }, 2000);
+            }
+            
+            resizeCanvas();
+            updateWorldInfo();
+            limpets = []; 
+            stalkers = []; 
+            particles = []; 
+            vents = [];
+
+            for (let i = 0; i < config.numVents; i++) {
+                vents.push(new Vent());
+            }
+            
+            updateVentActivity();
+            createChart();
+            updateUI();
+        }
+        
+        function updateUI() {
+            const producerCount = limpets.length;
+            const consumerCount = Math.floor(producerCount * 0.3); // Simulated filter feeders
+            const predatorCount = stalkers.length;
+            
+            statsEl.innerHTML = `Producers: ${producerCount}<br>Consumers: ${consumerCount}<br>Predators: ${predatorCount}`;
+            
+            const seconds = simulationTime / 60;
+            const days = Math.floor(seconds / config.secondsPerDay);
+            const hours = Math.floor((seconds % config.secondsPerDay) / (config.secondsPerDay / 24));
+            timeDisplayEl.innerHTML = `Mission Time: Sol ${days}, ${String(hours).padStart(2, '0')}:00`;
+            
+            const health = calculateEcosystemHealth();
+            const healthEl = document.getElementById('ecosystem-health');
+            if (healthEl) {
+                healthEl.innerHTML = `Ecosystem Health: <span style="color: ${health > 70 ? '#10b981' : health > 40 ? '#f59e0b' : '#ef4444'}">${health}%</span>`;
+            }
+            
+            // Update next discovery prediction
+            const nextDiscoveryEl = document.getElementById('next-discovery');
+            if (health > 80) {
+                nextDiscoveryEl.textContent = "High probability - monitoring...";
+                nextDiscoveryEl.className = "text-green-300";
+            } else if (health > 50) {
+                nextDiscoveryEl.textContent = "Moderate potential detected";
+                nextDiscoveryEl.className = "text-yellow-300";
+            } else {
+                nextDiscoveryEl.textContent = "Ecosystem needs stabilization";
+                nextDiscoveryEl.className = "text-red-300";
+            }
+        }
+
+        // Vent activity slider listener
+        ventSlider.addEventListener('input', () => {
+            updateVentActivity();
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            ctx.save();
+            camera.x = lerp(camera.x, camera.targetX, 0.02);
+            camera.y = lerp(camera.y, camera.targetY, 0.02);
+            camera.zoom = lerp(camera.zoom, camera.targetZoom, 0.02);
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(camera.zoom, camera.zoom);
+            ctx.translate(-canvas.width / 2 - camera.x, -canvas.height / 2 - camera.y);
+
+            drawBackground(camera);
+            
+            if (isSimulating && !isSystemFailure) {
+                frameCount++;
+                simulationTime++;
+
+                vents.forEach(v => v.emit());
+
+                const newLimpets = [];
+                const newStalkers = [];
+
+                particles.forEach(p => p.update());
+                limpets.forEach(l => {
+                    l.update();
+                    if (l.energy > config.limpetReproduceEnergy) {
+                        l.energy /= 2;
+                        newLimpets.push(new Limpet(l.x, l.y, l.energy));
+                    }
+                });
+                stalkers.forEach(s => {
+                    s.update();
+                    if (s.energy > config.stalkerReproduceEnergy) {
+                        s.energy /= 2;
+                        newStalkers.push(new Stalker(s.x, s.y, s.energy));
+                    }
+                });
+                
+                particles = particles.filter(p => p.lifespan > 0);
+                limpets = limpets.filter(l => l.energy > 0).concat(newLimpets);
+                stalkers = stalkers.filter(s => s.energy > 0).concat(newStalkers);
+
+                if (frameCount % 60 === 0) {
+                    updateUI();
+                    updateDiscoveryPotential();
+                    
+                    const label = Math.floor(simulationTime / 60) + 's';
+                    const producerCount = limpets.length;
+                    const consumerCount = Math.floor(producerCount * 0.3);
+                    const predatorCount = stalkers.length;
+                    
+                    timelineChart.data.labels.push(label);
+                    timelineChart.data.datasets[0].data.push(producerCount);
+                    timelineChart.data.datasets[1].data.push(consumerCount);
+                    timelineChart.data.datasets[2].data.push(predatorCount);
+                    
+                    if (timelineChart.data.labels.length > 30) {
+                        timelineChart.data.labels.shift();
+                        timelineChart.data.datasets.forEach(d => d.data.shift());
+                    }
+                    timelineChart.update('none');
+                }
+
+                if (frameCount > 120 && (limpets.length === 0 || (stalkers.length === 0 && frameCount > 600))) {
+                    isSystemFailure = true;
+                    isSimulating = false;
+                    failureOverlay.classList.remove('hidden');
+                    startBtn.textContent = '🔄 Restart Ecosystem';
+                    startBtn.disabled = false;
+                    startBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    startBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                }
+            } else if (!isInitializing) {
+                updateUI();
+            }
+            
+            const allDrawableObjects = [...vents, ...particles, ...limpets, ...stalkers];
+            allDrawableObjects.sort((a,b) => (a.y + (a.height || 0)) - (b.y + (b.height || 0)));
+            allDrawableObjects.forEach(obj => obj.draw(frameCount));
+            
+            drawAmbientParticles();
+            
+            ctx.restore();
+        }
+
+        // Initialize everything
+        init(true);
+        animate();
+    </script>
+</body>
+</html>
