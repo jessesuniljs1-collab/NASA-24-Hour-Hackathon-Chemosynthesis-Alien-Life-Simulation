@@ -28,13 +28,19 @@
     transition: opacity 1s ease-in-out;
 }
 #info-panel {
+  position: absolute;
+  top: 0;
   left: 0;
-  z-index: 10;
+  height: 100%;
+  width: 20rem; /* 80 Tailwind = 20rem */
 }
 
 #command-panel {
+  position: absolute;
+  top: 0;
   right: 0;
-  z-index: 10;
+  height: 100%;
+  width: 16rem; /* 64 Tailwind = 16rem */
 }
         #scanlines {
             position: absolute;
@@ -1192,5 +1198,6 @@ animate();
     </script>
 </body>
 </html>
+
 
 
