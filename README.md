@@ -1,37 +1,72 @@
-🌌 NASA 24-Hour Hackathon – Chemosynthesis Simulation
+🌌 NASA Ocean World Ecosystem Simulator
 
-This project was built in just 24 hours during the NASA Space Apps Hackathon by our team of friends. 🚀✨
+Built in 24 hours for the NASA Space Apps Hackathon
 
-We designed an interactive simulation that explores how life could thrive in alien oceans beyond sunlight, using chemosynthesis instead of photosynthesis. Inspired by hydrothermal vents on Earth and potential ecosystems on worlds like Europa and Enceladus, this simulation demonstrates how energy from chemical reactions can sustain life in environments with no sunlight.
+This project simulates chemosynthetic ecosystems that could exist in subsurface oceans of alien worlds (Europa, Enceladus, and the hypothetical Thalassa Nova). It visualizes how life might thrive without sunlight, relying instead on hydrothermal vent chemistry.
 
-🔬 Features
+🚀 Features
 
-🌊 Aquatic World Simulation – visualize life in deep oceans powered by chemosynthesis
+Interactive Ecosystem Simulation
 
-⚡ Chemical Energy Sources – H₂S, methane, and other compounds fueling alien ecosystems
+Adjust initial producers, predators, and hydrothermal activity.
 
-🐚 Interactive Organisms – dynamic ecosystem growth and survival mechanics
+Observe the rise, collapse, or stabilization of alien ecosystems.
 
-📊 Data-Driven Approach – integrates real NASA/space science insights on ocean worlds
 
-🎮 Built for Exploration – simple UI, easy interaction, and educational for all ages
+Multiple Ocean Worlds
 
-⏱️ Hackathon Challenge
+🌍 Europa – 100 km subsurface ocean below ice.
 
-Theme: “Beyond Sunlight: An Aquatic Chemosynthetic World”
-Duration: 24 hours
-Team: Built collaboratively with friends
+🪐 Enceladus – geyser-driven life potential.
 
-🚀 Tech Stack
+✨ Thalassa Nova – a hypothetical deep-ocean exoplanet.
 
-Frontend: HTML, CSS, JavaScript
 
-Visualization: Canvas / DOM-based simulation
+Realistic Chemistry & Energy Sources
 
-Data: NASA & planetary science references
+Tracks compounds like H₂S, CH₄, and SO₄²⁻.
+
+Shows key chemosynthetic reactions powering alien ecosystems.
+
+
+Organism Dynamics
+
+Primary Producers (chemosynthetic bacteria).
+
+Consumers (filter feeders).
+
+Apex Predators (serpentine hunters).
+
+
+Mission Planning Dashboard
+
+Displays current missions (Europa Clipper, Cassini Legacy, Future Probes).
+
+Shows discovery probabilities (biosignatures, complex life).
+
+
+Failure & Discovery Events
+
+Ecosystem collapse warnings.
+
+Randomized scientific discoveries when conditions align.
+
+
+
+🛠️ Tech Stack
+
+Frontend: HTML, CSS (Tailwind), JavaScript (Canvas + Chart.js).
+
+UI: Responsive control panels with live updates.
+
+Visualization: Real-time ecosystem rendering with procedural particle systems.
+
+No backend required — everything runs in-browser!
 
 🌍 Why This Matters
 
-Most ecosystems on Earth depend on sunlight. But on distant ocean worlds covered in ice, chemosynthesis could be the foundation of life. Our project demonstrates how studying Earth’s deep-sea vents can help us model potential alien oceans and expand our understanding of life in the universe.
+Most ecosystems on Earth depend on sunlight, but in alien oceans sealed under thick ice, life could survive through chemosynthesis. This simulator helps visualize how such ecosystems might evolve, stabilize, or collapse — valuable for astrobiology and future NASA missions.
 
-👉 Perfect for anyone interested in astrobiology, planetary science, and creative coding!
+👥 Team
+
+Built within 24 hours by a passionate hackathon team of students.
