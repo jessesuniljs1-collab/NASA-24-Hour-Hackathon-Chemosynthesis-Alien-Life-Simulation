@@ -2,6 +2,8 @@
 
 Built in 24 hours for the NASA Space Apps Hackathon
 
+ LIVE DEMO: Click Here👉 https://jessesuniljs1-collab.github.io/NASA-24-Hour-Hackathon-Chemosynthesis-Alien-Life-Simulation/
+
 This project simulates chemosynthetic ecosystems that could exist in subsurface oceans of alien worlds (Europa, Enceladus, and the hypothetical Thalassa Nova). It visualizes how life might thrive without sunlight, relying instead on hydrothermal vent chemistry.
 
 🚀 Features
